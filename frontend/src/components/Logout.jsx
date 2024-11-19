@@ -2,6 +2,7 @@ import React from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import api from "../../api";
+import { useEffect } from "react";
 
 function Logout() {
     const { setIsAuthorized } = useAuth()
@@ -17,7 +18,9 @@ function Logout() {
         setIsAuthorized(false)
         //setUser(null)
 
-        navigate('/')
+        useEffect(() => {
+            navigate('/')
+        }, []);
 
     } catch (error) {
         console.error('Error logging out', error)

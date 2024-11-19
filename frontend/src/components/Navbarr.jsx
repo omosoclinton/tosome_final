@@ -5,15 +5,23 @@ import { useAuth } from '../context/AuthContext';
 import useProfileData from './hooks/useProfileData';
 import Modal from './Modal';
 import CreateSessionForm from './sessions/CreateSessionForm';
-
+import { useNavigate } from 'react-router-dom';
 const Navbar = () => {
     const [isOpen, setIsOpen] = useState(false);
     const { isAuthorized } = useAuth();
-    const {user} = useProfileData()
-
+    const { user } = useProfileData()
+    const [searchQuery, setSearchQuery] = useState('')
+    const navigate = useNavigate()
 
     const toggleMenu = () => {
         setIsOpen(!isOpen);
+    };
+
+    const handleSearchSubmit = (e) => {
+        e.preventDefault();
+        if (searchQuery.trim()) {
+            navigate(`/search?q=${searchQuery}`);
+        }
     };
 
     return (
@@ -28,10 +36,9 @@ const Navbar = () => {
                     {/* Menu Links (Hidden on mobile) */}
                     <div className="hidden md:flex space-x-8 items-center">
                         <Link to="/home" className="text-gray-600 hover:text-blue-600">Home</Link>
-                        <Link to="/student" className="text-gray-600 hover:text-blue-600">Find a Tutor</Link>
                         {user.user_type === 'tutor' ? (
                             <div>
-                                <CreateSessionForm/>
+                                <CreateSessionForm />
                             </div>
                         ) : (
                             <div></div>
@@ -41,11 +48,18 @@ const Navbar = () => {
 
                     {/* Search Bar */}
                     <div className="hidden md:flex items-center">
-                        <input
-                            type="text"
-                            placeholder="Search for a tutor..."
-                            className="border border-gray-300 rounded-md py-1 px-2 focus:outline-none focus:border-blue-500"
-                        />
+                        <form  className="flex items-center space-x-2">
+                            <input
+                                type="text"
+                                placeholder="Search for tutors"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="border rounded py-2 px-3"
+                            />
+                            <button type="submit" className="btn-search">
+                                🔍
+                            </button>
+                        </form>
                     </div>
 
                     {/* User Auth (Login/Signup or Profile) */}
@@ -77,13 +91,11 @@ const Navbar = () => {
             </div>
 
             {/* Mobile Menu Dropdown */}
-            {isOpen && (
+            {isOpen && isAuthorized && (
                 <div className="md:hidden px-2 pt-2 pb-3 space-y-1 sm:px-3">
                     <Link to="/home" className="block text-gray-600 hover:text-blue-600">Home</Link>
-                    <Link to="/student" className="block text-gray-600 hover:text-blue-600">Find a Tutor</Link>
-                    <Link to="/subjects" className="block text-gray-600 hover:text-blue-600">Subjects</Link>
-                    <Link to="/about" className="block text-gray-600 hover:text-blue-600">About Us</Link>
-                    <Link to="/contact" className="block text-gray-600 hover:text-blue-600">Contact Us</Link>
+                    <Link to="*" className="block text-gray-600 hover:text-blue-600">Find a Tutor</Link>
+                    <Link to="*" className="block text-gray-600 hover:text-blue-600">Subjects</Link>
                     <input
                         type="text"
                         placeholder="Search..."

@@ -43,7 +43,7 @@ const CreateSessionForm = () => {
         <div>
             <button
                 onClick={() => setIsModalOpen(true)}
-                className="text-white px-4 "
+                className="text-gray-600 hover:text-blue-600"
             >
                 Create new session
             </button>

@@ -6,13 +6,41 @@ from rest_framework.response import Response
 from rest_framework import status, generics, response
 from.serializers import BookedSessionSerializer, TutorBookedSessionSerializer, StudentBookedSessionSerializer
 from .serializers import RegisterSerializer, TutorProfileSerializer, AvailableSessionSerializer, ProfileSerializer
-from .models import TutorProfile, AvailableSession, BookedSession
+from .models import TutorProfile, AvailableSession, BookedSession, Feedback
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.authtoken.models import Token
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
-from .serializers import SessionLinkSerializer
+from .serializers import SessionLinkSerializer, FeedbackSerializer, TutorFeedbackSerializer
+from django.db.models import Q
+from django.contrib.auth import authenticate, logout
 # Create your views here.
 
 ### NOT VERY IMPORTANT BUT YEAH
+
+class LoginView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        user = authenticate(username=request.data['username'], password=request.data['password'])
+        if user:
+            token, created = Token.objects.get_or_create(user=user)
+            return Response({'token': token.key}, status=status.HTTP_200_OK)
+        return Response({"message": "Invalid credentials"}, status=400)
+
+    
+class LogoutView(APIView):
+    permission_classes = [IsAuthenticated]
+    def post(self, request):
+        try:
+            refresh_token = request.data["refresh_token"]
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+            return Response({"message": "Logged out succesfully"}, status=status.HTTP_205_RESET_CONTENT)
+    
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
+
 class UserView(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request):
@@ -269,9 +297,17 @@ class StudentBookedSessionsView(APIView):
     def delete(self, request, pk=None):
         try:
             # Get the specific booked session by ID and check if it belongs to the student
-            booked_session = BookedSession.objects.get(id=pk, student=request.user)
+            booked_session = get_object_or_404(BookedSession, id=pk, student=request.user)
+            
+            # Update the associated AvailableSession's is_booked field to False
+            available_session = booked_session.available_session
+            available_session.is_booked = False
+            available_session.save()
+
+            # Delete the BookedSession instance
             booked_session.delete()
             return Response({"message": "Session cancelled successfully."}, status=status.HTTP_204_NO_CONTENT)
+        
         except BookedSession.DoesNotExist:
             return Response({"error": "Session not found."}, status=status.HTTP_404_NOT_FOUND)
 
@@ -280,13 +316,13 @@ class TutorBookedSessionsView(APIView):
     
     def get(self, request):
         try:
-            # Get all booked sessions where the available session belongs to this tutor
+            # Get all booked sessions for the current tutor
             booked_sessions = BookedSession.objects.filter(
                 available_session__tutor=request.user
             ).select_related(
                 'student',
                 'available_session'
-            ).order_by('-booking_date')
+            ).prefetch_related('feedback')  # Prefetch related feedbacks for completed sessions
             
             serializer = TutorBookedSessionSerializer(booked_sessions, many=True)
             
@@ -298,7 +334,7 @@ class TutorBookedSessionsView(APIView):
             }
             
             for session in serializer.data:
-                session_status = session['status'].lower()  # Renamed variable to avoid conflict
+                session_status = session['status'].lower()
                 sessions_by_status[session_status].append(session)
             
             return Response({
@@ -312,6 +348,7 @@ class TutorBookedSessionsView(APIView):
                 {"error": "Failed to fetch booked sessions."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
 
 class ConfirmBookingView(APIView):
     permission_classes = [IsAuthenticated]
@@ -423,6 +460,138 @@ class AddSessionLinkView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+class SubmitFeedbackView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, session_id):
+        try:
+            # Get the booked session
+            booked_session = BookedSession.objects.get(id=session_id, student=request.user)
+            
+            # Verify session is completed
+            if booked_session.status != 'Completed':
+                return Response(
+                    {"error": f"Cannot submit feedback. Session status is {booked_session.status}"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Retrieve TutorProfile directly
+            tutor_profile = TutorProfile.objects.get(user=booked_session.available_session.tutor)
+            
+            # Check for existing feedback
+            existing_feedback = Feedback.objects.filter(booked_session=booked_session).first()
+            if existing_feedback:
+                return Response(
+                    {"error": "Feedback already exists for this session"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Serialize the feedback
+            serializer = FeedbackSerializer(data=request.data)
+            
+            # Validate and save with the booked_session
+            if serializer.is_valid():
+                feedback = serializer.save(
+                    booked_session=booked_session,
+                    student=request.user,
+                    tutor_profile=tutor_profile
+                )
+                
+                tutor_profile.update_rating()  # Ensure this method exists on TutorProfile
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            else:
+                print(f"Validation errors: {serializer.errors}")
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            
+        except BookedSession.DoesNotExist:
+            return Response(
+                {"error": "Session not found or unauthorized"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except TutorProfile.DoesNotExist:
+            return Response(
+                {"error": "Tutor profile not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            print(f"Unexpected error: {str(e)}")
+            return Response(
+                {"error": f"An unexpected error occurred: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    def get(self, request, session_id):
+        try:
+            # Retrieve the booked session
+            booked_session = BookedSession.objects.get(id=session_id, student=request.user)
+            print(booked_session)
+
+            # Check if feedback exists for this session
+            feedback = Feedback.objects.filter(booked_session=booked_session).first()
+            print(feedback)
+            if not feedback:
+                return Response(
+                    {"error": "No feedback available for this session"},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            # Serialize and return the feedback
+            serializer = FeedbackSerializer(feedback)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except BookedSession.DoesNotExist:
+            return Response(
+                {"error": "Session not found or unauthorized"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {"error": f"An unexpected error occurred: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+
+
+class TutorFeedbackView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            # Get the tutor profile of the logged-in user
+            tutor_profile = TutorProfile.objects.get(user=request.user)
+            
+            # Retrieve all feedback related to this tutor
+            feedbacks = Feedback.objects.filter(tutor_profile=tutor_profile)
+            serializer = FeedbackSerializer(feedbacks, many=True)
+            
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        
+        except TutorProfile.DoesNotExist:
+            return Response(
+                {"error": "Tutor profile not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {"error": f"An unexpected error occurred: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+class TutorSearchView(APIView):
+    def get(self, request):
+        query = request.query_params.get('q', '').strip()
+        
+        # Filter tutors by matching name, subject, or location
+        tutors = TutorProfile.objects.filter(
+            Q(user__first_name__icontains=query) |
+            Q(user__last_name__icontains=query) |
+            Q(subjects__icontains=query) |
+            Q(location__icontains=query)
+        )
+
+        serializer = TutorProfileSerializer(tutors, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 

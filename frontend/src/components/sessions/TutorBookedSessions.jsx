@@ -29,7 +29,7 @@ const TutorBookedSessions = () => {
     // Confirm session by updating its status to "Confirmed"
     const handleConfirmSession = async (sessionId) => {
         try {
-            await api.put(`/api/users/confirm-booked-session/${sessionId}/`);
+            await api.patch(`/api/users/confirm-booked-session/${sessionId}/`);
             fetchBookedSessions(); // Refresh sessions after updating
         } catch (error) {
             console.error('Error confirming session:', error);
@@ -120,6 +120,15 @@ const SessionCard = ({ session, onConfirm, onComplete, onAddLink }) => {
                 </span></p>
                 <p className="text-gray-700">📅 Booked on: <span className="font-medium text-gray-900">{new Date(session.booking_date).toLocaleString()}</span></p>
 
+                {/* Show feedback if the session is completed and has feedback */}
+                {session.status === 'Completed' && session.feedback && (
+                    <div className="mt-4">
+                        <h4 className="text-lg font-semibold text-gray-700">🌟 Student Feedback</h4>
+                        <p className="text-gray-700">Rating: <span className="font-medium text-yellow-500">{session.feedback.rating} / 5</span></p>
+                        <p className="text-gray-700">Review: <span className="font-medium">{session.feedback.review}</span></p>
+                    </div>
+                )}
+
                 {/* Show link input and save button only for confirmed sessions */}
                 {session.status === 'Confirmed' && (
                     <div className="flex items-center space-x-2 mt-4">
@@ -178,5 +187,6 @@ const SessionCard = ({ session, onConfirm, onComplete, onAddLink }) => {
         </div>
     );
 };
+
 
 export default TutorBookedSessions;

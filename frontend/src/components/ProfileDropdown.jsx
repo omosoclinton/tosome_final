@@ -43,7 +43,7 @@ const Dropdown = () => {
                     id="dropdownMenu"
                     className="absolute block shadow-lg bg-white py-2 z-[1000] min-w-full w-max rounded-lg max-h-96 overflow-auto"
                 >
-                    <Link to='/profile' className="py-2.5 px-5 flex items-center hover:bg-gray-100 text-[#333] text-sm cursor-pointer">
+                    <Link to='/user-profile' className="py-2.5 px-5 flex items-center hover:bg-gray-100 text-[#333] text-sm cursor-pointer">
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
                             fill="currentColor"

@@ -13,6 +13,8 @@ import Home from './pages/Home'
 import Logout from './components/Logout'
 import TutorAvailableSessions from './components/sessions/TutorAvailableSessions'
 import TutorBookedSessions from './components/sessions/TutorBookedSessions'
+import ProfilePage from './pages/ProfilePage'
+import SearchResults from './components/SearchResults'
 
 function App() {
   return (
@@ -26,12 +28,26 @@ function App() {
                 <Home/>
               </ProtectedRoute>
           }/>
+          <Route 
+            path='/user-profile'
+            element={
+              <ProtectedRoute>
+                <ProfilePage/>
+              </ProtectedRoute>
+          }/>
+          <Route 
+            path='/search'
+            element={
+              <ProtectedRoute>
+                <SearchResults/>
+              </ProtectedRoute>
+          }/>
           <Route path='/tutor-available-sessions' element={<TutorAvailableSessions />} />
           <Route path='/tutor-booked-sessions' element={<TutorBookedSessions />} />
           <Route path='/create-session' element={<CreateSessionForm/>}/>
           <Route path='/tutor' element={<Tutor />} />
-          <Route path='/login' element={<Logout />} />
-          <Route path='/logout' element={<Login />} />
+          <Route path='/login' element={<Login />} />
+          <Route path='/logout' element={<Logout />} />
           <Route path='/register' element={<RegisterAndLogOut />} />
           <Route path='*' element={<NotFound />} />
           <Route path='/' element={<LandingPage />} />

@@ -29,7 +29,7 @@ const StudentBookedSessions = () => {
     // Cancel/Delete a booked session
     const handleDeleteSession = async (sessionId) => {
         try {
-            await api.delete(`/api/users/student-booked-sessions/${sessionId}/`);
+            await api.delete(`/api/users/student-booked-sessions/${sessionId}/delete/`);
             fetchBookedSessions(); // Refresh sessions after deletion
         } catch (error) {
             console.error('Error canceling session:', error);
@@ -86,7 +86,66 @@ const StudentBookedSessions = () => {
 };
 
 // Updated SessionCard component to display session link
+
 const SessionCard = ({ session, onDelete, allowCancel }) => {
+    const [showReviewForm, setShowReviewForm] = useState(false);
+    const [reviewText, setReviewText] = useState('');
+    const [rating, setRating] = useState(5); // Default rating
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [submittedReview, setSubmittedReview] = useState(null);
+    const [submittedRating, setSubmittedRating] = useState(null);
+    const [isLoadingFeedback, setIsLoadingFeedback] = useState(true);
+    const [feedbackError, setFeedbackError] = useState(null);
+
+    // Fetch existing feedback when component mounts
+    useEffect(() => {
+        const fetchFeedback = async () => {
+            try {
+                const response = await api.get(`/api/users/sessions/${session.id}/get-feedback/`);
+                console.log(response.data)
+                setSubmittedReview(response.data.review);
+                setSubmittedRating(response.data.rating);
+            } catch (error) {
+                if (error.response && error.response.status === 404) {
+                    // No feedback found, this is expected behavior
+                    setSubmittedReview(null);
+                    setSubmittedRating(null);
+                } else {
+                    console.error('Error fetching feedback:', error);
+                    setFeedbackError('Could not load feedback');
+                }
+            } finally {
+                setIsLoadingFeedback(false);
+            }
+        };
+
+        fetchFeedback();
+    }, [session.id]);
+
+    // Handle review form submission
+    const handleReviewSubmit = async () => {
+        try {
+            setIsSubmitting(true);
+            const response = await api.post(`/api/users/sessions/${session.id}/feedback/`, {
+                rating,
+                review: reviewText,
+            });
+
+            // Update state with the submitted review and rating
+            setSubmittedReview(response.data.review);
+            setSubmittedRating(response.data.rating);
+            setShowReviewForm(false);
+            setReviewText('');
+            setRating(5);
+            alert('Review submitted successfully!');
+        } catch (error) {
+            console.error('Error submitting review:', error);
+            alert('Failed to submit review.');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     return (
         <div className="bg-white border border-gray-200 shadow-lg rounded-xl p-6 transition-transform transform hover:scale-105 hover:shadow-2xl flex justify-between items-center space-x-4 mb-4">
             <div className="flex flex-col space-y-2">
@@ -113,6 +172,56 @@ const SessionCard = ({ session, onDelete, allowCancel }) => {
                         </p>
                     </div>
                 )}
+                
+                {/* Show review if available or form for completed sessions */}
+                {session.status === 'Completed' && (
+                    <>
+                        {isLoadingFeedback ? (
+                            <p className="text-gray-500">Loading feedback...</p>
+                        ) : feedbackError ? (
+                            <p className="text-red-500">{feedbackError}</p>
+                        ) : submittedReview && submittedRating? (
+                            <div className="mt-2">
+                                <p className="text-gray-700">🌟 Your Rating: <span className="font-medium text-gray-900">{submittedRating} / 5</span></p>
+                                <p className="text-gray-700">📝 Your Review: <span className="text-gray-900">{submittedReview}</span></p>
+                            </div>
+                        ) : !showReviewForm ? (
+                            <button
+                                onClick={() => setShowReviewForm(true)}
+                                className="mt-2 py-2 px-4 bg-blue-500 text-white font-semibold rounded-lg shadow-md hover:bg-blue-600 transition ease-in-out duration-300"
+                            >
+                                Leave Review
+                            </button>
+                        ) : (
+                            <div className="mt-2">
+                                <textarea
+                                    value={reviewText}
+                                    onChange={(e) => setReviewText(e.target.value)}
+                                    placeholder="Write your review..."
+                                    className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 mb-2"
+                                />
+                                <select
+                                    value={rating}
+                                    onChange={(e) => setRating(Number(e.target.value))}
+                                    className="p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 mb-2"
+                                >
+                                    <option value="5">5 - Excellent</option>
+                                    <option value="4">4 - Very Good</option>
+                                    <option value="3">3 - Good</option>
+                                    <option value="2">2 - Fair</option>
+                                    <option value="1">1 - Poor</option>
+                                </select>
+                                <button
+                                    onClick={handleReviewSubmit}
+                                    disabled={isSubmitting}
+                                    className="py-2 px-4 bg-green-500 text-white font-semibold rounded-lg shadow-md hover:bg-green-600 transition ease-in-out duration-300"
+                                >
+                                    {isSubmitting ? 'Submitting...' : 'Submit Review'}
+                                </button>
+                            </div>
+                        )}
+                    </>
+                )}
             </div>
             
             {allowCancel && (
@@ -128,5 +237,8 @@ const SessionCard = ({ session, onDelete, allowCancel }) => {
         </div>
     );
 };
+
+
+
 
 export default StudentBookedSessions;

@@ -13,6 +13,7 @@ const StudentAvailableSessions = () => {
     const fetchAvailableSessions = async () => {
         try {
             const response = await api.get('/api/users/all-sessions/'); // Use the new endpoint
+            console.log(response.data)
             setSessions(response.data);
         } catch (error) {
             setError("Failed to load available sessions.");
@@ -45,6 +46,7 @@ const StudentAvailableSessions = () => {
                             className="bg-white border border-gray-200 shadow-lg rounded-xl p-6 transition-transform transform hover:scale-105 hover:shadow-2xl flex justify-between items-center space-x-4"
                         >
                             <div className="flex flex-col space-y-2">
+                            <h3 className="text-lg font-semibold text-gray-700">👤 Tutor: <span className="text-gray-900">{session.tutor_name}</span></h3>
                                 <h3 className="text-xl font-semibold text-gray-700">📚 Subject: <span className="text-gray-900">{session.subject}</span></h3>
                                 <p className="text-gray-700">📅 Date: <span className="font-medium text-gray-900">{new Date(session.date).toLocaleString()}</span></p>
                                 <p className="text-gray-700">🔖 Status: <span className={`font-medium ${session.is_booked ? 'text-red-500' : 'text-green-500'}`}>

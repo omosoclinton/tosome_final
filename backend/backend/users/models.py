@@ -82,12 +82,21 @@ class TutorProfile(models.Model):
     subjects = models.CharField(max_length=255)
     qualifications = models.TextField()
     experience = models.TextField()
-    rating = models.DecimalField(max_digits=3, decimal_places=2, default=0)
     location = models.CharField(max_length=255, default='Online')
     status = models.CharField(max_length=20, default='Under Review')
-
+    rating = models.DecimalField(
+        max_digits=3, decimal_places=2, default=0,
+        help_text="Average rating out of 5"
+    )
+    
     def __str__(self):
         return f'{self.user.first_name} {self.user.last_name}'
+    
+    def update_rating(self):
+        feedbacks = self.feedbacks.all()
+        if feedbacks.exists():
+            self.rating = feedbacks.aggregate(models.Avg('rating'))['rating__avg']
+            self.save()
     
 
 
@@ -180,3 +189,25 @@ class BookedSession(models.Model):
 
     def __str__(self):
         return f"{self.student.first_name} booked {self.available_session.subject}"
+
+
+class Feedback(models.Model):
+    booked_session = models.OneToOneField(
+        'BookedSession', on_delete=models.CASCADE, related_name='feedback',
+        help_text="The session for which feedback is provided"
+    )
+    tutor_profile = models.ForeignKey(
+        'TutorProfile', on_delete=models.CASCADE, related_name='feedbacks'
+    )
+    student = models.ForeignKey(
+        get_user_model(), on_delete=models.CASCADE, related_name='student_feedback'
+    )
+    rating = models.PositiveIntegerField(
+        choices=[(i, i) for i in range(1, 6)],  # Rating out of 5
+        help_text="Rating out of 5, where 5 is excellent"
+    )
+    review = models.TextField(blank=True, null=True)
+    date_submitted = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Feedback by {self.student} for {self.tutor_profile.user}"

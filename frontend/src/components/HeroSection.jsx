@@ -20,7 +20,7 @@ function HeroSection() {
           Find the Perfect Tutor for Your Learning Needs
         </h1>
         <p className="text-white text-lg md:text-2xl text-center mb-8">
-          Personalized tutoring for every subject and every level.
+          Personalized tutoring for highschool level
         </p>
         <div className="flex space-x-4">
           <Link to="/login" className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600">

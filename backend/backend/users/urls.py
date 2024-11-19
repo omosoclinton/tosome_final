@@ -3,9 +3,11 @@ from . import views
 from .views import StudentRegisterView, CreateUserAndTutorView, UserView, TutorView, TutorProfileView
 from .views import AvailableSessionView, ProfileDetailView, AllAvailableSessionsView, BookSessionView
 from .views import StudentBookedSessionsView, TutorBookedSessionsView, ConfirmBookingView, CompleteSessionView
-from .views import AddSessionLinkView
+from .views import AddSessionLinkView, LoginView, LogoutView, SubmitFeedbackView, TutorFeedbackView, TutorSearchView
 urlpatterns = [
     path('home/', views.home, name='home'),
+    path('login/', LoginView.as_view(), name="login"),
+    path('logout/', LogoutView.as_view(), name="logout"),
     path('get-user/', UserView.as_view(), name="get-user" ),
     path('student-register/', StudentRegisterView.as_view()),
     path('register-tutor/', CreateUserAndTutorView.as_view()),
@@ -18,8 +20,13 @@ urlpatterns = [
     path('profile/', ProfileDetailView.as_view(), name='profile-detail'),
     path('booked-sessions/', BookSessionView.as_view()),
     path('student-booked-sessions/', StudentBookedSessionsView.as_view()),
+    path('student-booked-sessions/<int:pk>/delete/', StudentBookedSessionsView.as_view()),
     path('tutor-booked-sessions/', TutorBookedSessionsView.as_view()),
     path('confirm-booked-session/<int:pk>/', ConfirmBookingView.as_view()),
     path('sessions/<int:pk>/complete/', CompleteSessionView.as_view()),
     path('sessions/<int:session_id>/add-link/', AddSessionLinkView.as_view()),
+    path('sessions/<int:session_id>/get-feedback/', SubmitFeedbackView.as_view()),
+    path('sessions/<int:session_id>/feedback/', SubmitFeedbackView.as_view()),
+    path('tutor-feedback/', TutorFeedbackView.as_view()),
+    path('tutors/search/', TutorSearchView.as_view())
 ]

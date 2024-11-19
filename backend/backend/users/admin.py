@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import User, TutorProfile, Profile, Session, AvailableSession, BookedSession
+from .models import User, TutorProfile, Profile, Session, AvailableSession, BookedSession, Feedback
 # Register your models here.
 
 admin.site.register(TutorProfile)
@@ -8,3 +8,4 @@ admin.site.register(Profile)
 admin.site.register(Session)
 admin.site.register(AvailableSession)
 admin.site.register(BookedSession)
+admin.site.register(Feedback)

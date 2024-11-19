@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from rest_framework.authtoken.models import Token
 from django.contrib.auth.password_validation import validate_password
-from .models import TutorProfile, AvailableSession, Profile, BookedSession
+from .models import TutorProfile, AvailableSession, Profile, BookedSession, Feedback
 
 
 
@@ -36,12 +36,22 @@ class RegisterSerializer(serializers.ModelSerializer):
         Token.objects.create(user=user)
 
         return user
-    
+class TutorFeedbackSerializer(serializers.ModelSerializer):
+    student_name = serializers.CharField(source='student.first_name')
+    class Meta:
+        model = Feedback
+        fields = ['rating', 'review', 'student_name']
+
+    def validate(self, data):
+        return data
+
+
+
 class TutorProfileSerializer(serializers.ModelSerializer):
-       
+    feedbacks = TutorFeedbackSerializer(many=True, source='feedback_set', read_only=True)
     class Meta:
         model = TutorProfile
-        fields = ['subjects', 'qualifications', 'experience', 'rating', 'status']
+        fields = ['subjects', 'qualifications', 'experience', 'rating', 'status','feedbacks', 'location']
         
         
         
@@ -49,11 +59,12 @@ class TutorProfileSerializer(serializers.ModelSerializer):
 
 
 class AvailableSessionSerializer(serializers.ModelSerializer):
+    tutor_name = serializers.CharField(source='tutor.get_full_name', read_only=True)
     subject = serializers.ChoiceField(choices=[])
 
     class Meta:
         model = AvailableSession
-        fields = ['id', 'subject', 'date', 'is_booked']
+        fields = ['id', 'subject', 'date', 'is_booked', 'tutor_name']
 
     def __init__(self, *args, **kwargs):
         tutor = kwargs.pop('tutor', None)
@@ -79,6 +90,13 @@ class ProfileSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id']
         
+class AvailableSessionNestedSerializer(serializers.ModelSerializer):
+    tutor_name = serializers.CharField(source='tutor.get_full_name', read_only=True)  # Full name from user
+
+    class Meta:
+        model = AvailableSession
+        fields = ['id', 'subject', 'date', 'tutor_name'] 
+        
 class BookedSessionSerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source='student.username', read_only=True)
     student_email = serializers.EmailField(source='student.email', read_only=True)
@@ -88,7 +106,17 @@ class BookedSessionSerializer(serializers.ModelSerializer):
         fields = ['id', 'available_session', 'student_name', 'student_email', 'booking_date', 'status']
         read_only_fields = ['booking_date', 'student']
         
+        
+class FeedbackSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Feedback
+        fields = ['rating', 'review']
+
+    def validate(self, data):
+        return data
+        
 class TutorBookedSessionSerializer(serializers.ModelSerializer):
+    feedback = FeedbackSerializer(read_only=True)
     student_name = serializers.SerializerMethodField()
     subject = serializers.CharField(source='available_session.subject')
     date = serializers.DateTimeField(source='available_session.date')
@@ -96,7 +124,7 @@ class TutorBookedSessionSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = BookedSession
-        fields = ['id', 'student_name', 'subject', 'date', 'booking_date', 'status', 'session_link']
+        fields = ['id', 'student_name', 'subject', 'date', 'booking_date', 'status', 'session_link', 'feedback' ]
         
     def get_student_name(self, obj):
         return f"{obj.student.first_name} {obj.student.last_name}"
@@ -119,7 +147,7 @@ class StudentBookedSessionSerializer(serializers.ModelSerializer):
             'date',
             'status',
             'booking_date',
-            'session_link'  # Include the session_link field
+            'session_link',  # Include the session_link field
         ]
 
     def get_tutor_name(self, obj):
@@ -147,3 +175,19 @@ class SessionLinkSerializer(serializers.ModelSerializer):
                 "Session link can only be added to confirmed sessions."
             )
         return data
+    
+
+
+
+
+
+
+# class FeedbackSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Feedback
+#         fields = ['rating', 'review']  # Removed booked_session as it's set in the view
+        
+#     def validate_rating(self, value):
+#         if not (1 <= value <= 5):
+#             raise serializers.ValidationError("Rating must be between 1 and 5")
+#         return value
