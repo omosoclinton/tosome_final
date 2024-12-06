@@ -5,6 +5,6 @@ set -o errexit
 
 pip install -r ./backend/backend/requirements.txt
 
-python manage.py collectstatic --no-input
-python manage.py migrate
+python ./backend/backend/manage.py collectstatic --no-input
+python ./backend/backend/manage.py migrate
 
